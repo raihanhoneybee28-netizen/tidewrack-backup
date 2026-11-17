@@ -34,9 +34,6 @@ and an ordered list of unique journal entry IDs.
 - [ ] Confirm the journal starts empty.
 - [ ] Save the loaded legacy game, relaunch, and Continue. Confirm flags remain
       intact and the rewritten save contains version 2 journal data.
-- [ ] Test an early journal payload using a top-level journal_entries array.
-      Confirm valid string IDs load in order and duplicate/blank/non-string
-      values are ignored.
 
 ## Invalid-save handling
 
