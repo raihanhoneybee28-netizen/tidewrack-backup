@@ -40,7 +40,7 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
-## Use this for UI that should not offer Continue for a malformed or obsolete save.
+## Use this for UI that should not offer Continue for an unreadable save.
 func has_usable_save() -> bool:
 	return not _read_save_data(false).is_empty()
 
@@ -92,11 +92,11 @@ func load_game() -> bool:
 
 	var loaded_flags: Variant = data.get("flags", {})
 	if typeof(loaded_flags) != TYPE_DICTIONARY:
-		push_error("GameState: save has invalid story flags.")
-		return false
+		push_warning("GameState: save has invalid story flags; loading with no flags.")
+		loaded_flags = {}
 
-	# Apply only after the whole payload has passed validation. This leaves an
-	# in-progress session intact when a damaged save fails to load.
+	# Apply only after required state has passed validation. A malformed flags
+	# field is recoverable and keeps the historical empty-flags fallback.
 	current_scene = loaded_scene
 	var flags_dictionary: Dictionary = loaded_flags
 	flags = flags_dictionary.duplicate(true)
