@@ -31,7 +31,7 @@ func new_game() -> void:
 	current_scene = DEFAULT_SCENE
 	var journal := _journal()
 	if journal != null and journal.has_method("reset"):
-		journal.reset()
+		journal.call("reset")
 	state_changed.emit()
 
 
@@ -49,7 +49,7 @@ func save_game() -> bool:
 	var journal_payload: Variant = {}
 	var journal := _journal()
 	if journal != null and journal.has_method("to_save_data"):
-		journal_payload = journal.to_save_data()
+		journal_payload = journal.call("to_save_data")
 
 	var payload := {
 		"version": SAVE_VERSION,
@@ -98,13 +98,13 @@ func load_game() -> bool:
 	# Apply only after the whole payload has passed validation. This leaves an
 	# in-progress session intact when a damaged save fails to load.
 	current_scene = loaded_scene
-	flags = (loaded_flags as Dictionary).duplicate(true)
+	var flags_dictionary: Dictionary = loaded_flags\n\tflags = flags_dictionary.duplicate(true)
 
 	var journal := _journal()
 	if journal != null and journal.has_method("load_from_save"):
 		# Version 1 has no journal; treating it as an empty collection preserves
 		# its flags and makes the migration invisible to players.
-		journal.load_from_save(_journal_payload_from(data))
+		journal.call("load_from_save", _journal_payload_from(data))
 
 	state_changed.emit()
 	return true
