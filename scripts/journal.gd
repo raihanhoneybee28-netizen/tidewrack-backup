@@ -39,7 +39,8 @@ func load_from_save(payload: Variant) -> void:
 
 	var raw_entries: Variant = payload
 	if typeof(payload) == TYPE_DICTIONARY:
-		raw_entries = (payload as Dictionary).get("entries", [])
+		var payload_dictionary: Dictionary = payload
+		raw_entries = payload_dictionary.get("entries", [])
 	if typeof(raw_entries) != TYPE_ARRAY:
 		return
 
