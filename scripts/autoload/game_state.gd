@@ -98,7 +98,8 @@ func load_game() -> bool:
 	# Apply only after the whole payload has passed validation. This leaves an
 	# in-progress session intact when a damaged save fails to load.
 	current_scene = loaded_scene
-	var flags_dictionary: Dictionary = loaded_flags\n\tflags = flags_dictionary.duplicate(true)
+	var flags_dictionary: Dictionary = loaded_flags
+	flags = flags_dictionary.duplicate(true)
 
 	var journal := _journal()
 	if journal != null and journal.has_method("load_from_save"):
