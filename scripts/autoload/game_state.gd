@@ -40,9 +40,11 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
-## Use this for UI that should not offer Continue for an unreadable save.
+## Use this for UI that should not offer Continue for an unreadable save or
+## one that cannot resume into an available scene.
 func has_usable_save() -> bool:
-	return not _read_save_data(false).is_empty()
+	var data := _read_save_data(false)
+	return not data.is_empty() and _is_available_scene(data.get("scene", DEFAULT_SCENE))
 
 
 func save_game() -> bool:
@@ -86,7 +88,7 @@ func load_game() -> bool:
 		return false
 
 	var loaded_scene: Variant = data.get("scene", DEFAULT_SCENE)
-	if typeof(loaded_scene) != TYPE_STRING or not ResourceLoader.exists(loaded_scene, "PackedScene"):
+	if not _is_available_scene(loaded_scene):
 		push_error("GameState: save references an unavailable scene.")
 		return false
 
@@ -120,6 +122,10 @@ func delete_save() -> void:
 
 func _journal() -> Node:
 	return get_node_or_null("/root/Journal")
+
+
+func _is_available_scene(scene: Variant) -> bool:
+	return typeof(scene) == TYPE_STRING and ResourceLoader.exists(scene, "PackedScene")
 
 
 func _read_save_data(report_errors: bool) -> Dictionary:
