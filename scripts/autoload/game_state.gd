@@ -105,7 +105,7 @@ func load_game() -> bool:
 	if journal != null and journal.has_method("load_from_save"):
 		# Version 1 has no journal; treating it as an empty collection preserves
 		# its flags and makes the migration invisible to players.
-		journal.call("load_from_save", _journal_payload_from(data))
+		journal.call("load_from_save", data.get("journal", {}))
 
 	state_changed.emit()
 	return true
@@ -120,14 +120,6 @@ func delete_save() -> void:
 
 func _journal() -> Node:
 	return get_node_or_null("/root/Journal")
-
-
-func _journal_payload_from(data: Dictionary) -> Variant:
-	# Accept the nested v2 format and the short-lived array format used by
-	# early journal experiments.
-	if data.has("journal"):
-		return data["journal"]
-	return data.get("journal_entries", [])
 
 
 func _read_save_data(report_errors: bool) -> Dictionary:
