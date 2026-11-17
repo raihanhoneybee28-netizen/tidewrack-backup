@@ -43,8 +43,8 @@ For each case below, return to the title screen or relaunch the game.
 - [ ] Invalid JSON or a top-level JSON array: Continue is disabled.
 - [ ] A save whose scene is missing, non-string, or not a packaged scene:
       Continue is disabled or loading fails without changing the active session.
-- [ ] A save whose flags value is not an object: Continue is disabled or
-      loading fails without changing the active session.
+- [ ] A save whose flags value is not an object: Continue loads the valid
+      scene with empty story flags; any valid journal entries remain intact.
 - [ ] A journal payload with a non-array entries value: the save loads, with
       an empty journal and intact scene/flags.
 
