@@ -36,8 +36,10 @@ who answers you) responds. Repeat across locations toward the water.
 
 The Journal is an autoloaded, durable collection of ordered, unique log IDs.
 A manual save stores it alongside the current scene and branching-story flags in
-the single `user://save.json` slot. Continue validates the save before applying
-it; malformed saves do not replace live state or offer a usable Continue path.
+the single `user://save.json` slot. Continue rejects unreadable saves and saves
+that reference an unavailable scene. A malformed flags field is recoverable:
+the valid scene loads with empty story flags. Restored journal entries load
+silently, without emitting new-entry notifications.
 
 Journal persistence is additive: legacy version-1 saves retain their scene and
 story flags and load with an empty journal. The shipped save format is version 2
