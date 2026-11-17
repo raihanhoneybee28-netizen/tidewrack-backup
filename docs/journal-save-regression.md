@@ -12,6 +12,8 @@ and an ordered list of unique journal entry IDs.
 - [ ] Confirm the saved scene opens.
 - [ ] Confirm every chosen story flag still affects dialogue/world behavior.
 - [ ] Confirm both journal entries are present, in discovery order.
+- [ ] Confirm Continue restores entries silently: no `entry_added` signal or
+      new-log notification is emitted for restored entries.
 - [ ] Save again, quit, relaunch, and Continue again; state remains unchanged.
 
 ## Journal entry handling
