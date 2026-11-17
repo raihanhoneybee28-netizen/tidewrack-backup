@@ -25,12 +25,27 @@ who answers you) responds. Repeat across locations toward the water.
 | Save / load        | ✅ vertical slice | Single slot, `user://save.json`. |
 | Menus + settings   | ✅ vertical slice | Title, pause, volume, fullscreen. |
 | Player movement    | ✅ vertical slice | Top-down; wall collision pending. |
-| Journal            | ⏳ demo           | Tracks discovered logs; re-readable. |
+| Journal state      | ✅ persisted      | Ordered, duplicate-free log IDs save with story state; reader UI and discovery hooks remain demo work. |
 | Second location    | ⏳ demo           | The lamp room. |
 | Controller + remap  | ⏳ demo          | Currently keyboard-only, built-in actions. |
 | Localization        | ⏳ press build    | String extraction + translation tables. |
 | Accessibility       | ⏳ press build    | Text scale, dyslexia-friendly font, no-flash. |
 | Steam integration   | ⏳ launch         | Achievements, cloud saves. |
+
+## Journal & save contract
+
+The Journal is an autoloaded, durable collection of ordered, unique log IDs.
+A manual save stores it alongside the current scene and branching-story flags in
+the single `user://save.json` slot. Continue validates the save before applying
+it; malformed saves do not replace live state or offer a usable Continue path.
+
+Journal persistence is additive: legacy version-1 saves retain their scene and
+story flags and load with an empty journal. The shipped save format is version 2
+and writes through a verified temporary file before replacing the active save.
+
+The log reader and the content hooks that call `Journal.discover(id)` are still
+Public Demo work. Until those hooks land, the persistence layer is ready but
+normal gameplay does not add journal entries on its own.
 
 ## Interaction design
 
