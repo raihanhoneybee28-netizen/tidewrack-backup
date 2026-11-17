@@ -1,9 +1,9 @@
 extends Node
-## Journal — discovered-logs system (Public Demo scaffold).
+## Journal — durable discovered-log collection.
 ##
-## Meant to be autoloaded as `Journal`. As the player examines objects, the
-## dialogue "set_flag" hooks will record discovered entries here; the journal
-## screen renders them. Scaffold only: storage + a couple of helpers, no UI yet.
+## Journal owns validation and ordering; GameState owns the save file. The
+## save-facing methods deliberately accept legacy payloads so old saves remain
+## usable after the journal ships.
 
 signal entry_added(id: String)
 
@@ -11,10 +11,11 @@ var _entries: Array[String] = []
 
 
 func discover(id: String) -> void:
-	if id in _entries:
+	var normalized := id.strip_edges()
+	if normalized.is_empty() or normalized in _entries:
 		return
-	_entries.append(id)
-	entry_added.emit(id)
+	_entries.append(normalized)
+	entry_added.emit(normalized)
 
 
 func entries() -> Array[String]:
@@ -23,4 +24,25 @@ func entries() -> Array[String]:
 
 func has(id: String) -> bool:
 	return id in _entries
-# TODO(demo): persist entries through GameState.save_game() and add the reader UI.
+
+
+func reset() -> void:
+	_entries.clear()
+
+
+func to_save_data() -> Dictionary:
+	return {"entries": _entries.duplicate()}
+
+
+func load_from_save(payload: Variant) -> void:
+	_entries.clear()
+
+	var raw_entries: Variant = payload
+	if typeof(payload) == TYPE_DICTIONARY:
+		raw_entries = (payload as Dictionary).get("entries", [])
+	if typeof(raw_entries) != TYPE_ARRAY:
+		return
+
+	for raw_id in raw_entries:
+		if typeof(raw_id) == TYPE_STRING:
+			discover(str(raw_id))
