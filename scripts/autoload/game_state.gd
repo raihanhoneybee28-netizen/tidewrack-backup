@@ -1,18 +1,20 @@
 extends Node
-## GameState — global save/load and story flags.
+## GameState — global save/load, story flags, and durable journal state.
 ##
-## Autoloaded as `GameState`. Holds the narrative flags set by dialogue
-## choices and persists them to user://save.json so "Continue" works.
+## Autoloaded as `GameState`. Version 1 saves contain scene + story flags.
+## Version 2 adds the Journal payload without changing the legacy fields.
 
 signal state_changed
 
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 1
+const TEMP_SAVE_PATH := "user://save.json.tmp"
+const SAVE_VERSION := 2
+const DEFAULT_SCENE := "res://scenes/game.tscn"
 
 ## Story flags set during play, e.g. {"trusted_edith": true}.
 var flags: Dictionary = {}
 ## Path of the scene the player should resume into.
-var current_scene: String = "res://scenes/game.tscn"
+var current_scene: String = DEFAULT_SCENE
 
 
 func set_flag(name: String, value: Variant) -> void:
@@ -26,49 +28,87 @@ func get_flag(name: String, default: Variant = false) -> Variant:
 
 func new_game() -> void:
 	flags.clear()
-	current_scene = "res://scenes/game.tscn"
+	current_scene = DEFAULT_SCENE
+	var journal := _journal()
+	if journal != null and journal.has_method("reset"):
+		journal.call("reset")
 	state_changed.emit()
 
 
+## Kept for existing callers that only need to know whether a save file exists.
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+## Use this for UI that should not offer Continue for an unreadable save or
+## one that cannot resume into an available scene.
+func has_usable_save() -> bool:
+	var data := _read_save_data(false)
+	return not data.is_empty() and _is_available_scene(data.get("scene", DEFAULT_SCENE))
+
+
 func save_game() -> bool:
+	var journal_payload: Variant = {}
+	var journal := _journal()
+	if journal != null and journal.has_method("to_save_data"):
+		journal_payload = journal.call("to_save_data")
+
 	var payload := {
 		"version": SAVE_VERSION,
 		"scene": current_scene,
 		"flags": flags,
+		"journal": journal_payload,
 	}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var text := JSON.stringify(payload, "\t")
+	var file := FileAccess.open(TEMP_SAVE_PATH, FileAccess.WRITE)
 	if file == null:
-		push_error("GameState: could not open save file for writing.")
+		push_error("GameState: could not open temporary save file for writing.")
 		return false
-	file.store_string(JSON.stringify(payload, "\t"))
+	file.store_string(text)
+	file.flush()
 	file.close()
+
+	# Do not replace the last known-good save unless the staged file parses.
+	if _read_save_data_from(TEMP_SAVE_PATH, true).is_empty():
+		DirAccess.remove_absolute(TEMP_SAVE_PATH)
+		push_error("GameState: staged save could not be verified.")
+		return false
+
+	var result := DirAccess.rename_absolute(TEMP_SAVE_PATH, SAVE_PATH)
+	if result != OK:
+		DirAccess.remove_absolute(TEMP_SAVE_PATH)
+		push_error("GameState: could not replace save file (error %s)." % result)
+		return false
 	return true
 
 
 func load_game() -> bool:
-	if not has_save():
-		return false
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		push_error("GameState: could not open save file for reading.")
-		return false
-	var text := file.get_as_text()
-	file.close()
-
-	var parsed: Variant = JSON.parse_string(text)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		push_error("GameState: save file is corrupt.")
+	var data := _read_save_data(true)
+	if data.is_empty():
 		return false
 
-	var data: Dictionary = parsed
-	# Future-proofing: migrate older save versions here.
-	current_scene = data.get("scene", "res://scenes/game.tscn")
+	var loaded_scene: Variant = data.get("scene", DEFAULT_SCENE)
+	if not _is_available_scene(loaded_scene):
+		push_error("GameState: save references an unavailable scene.")
+		return false
+
 	var loaded_flags: Variant = data.get("flags", {})
-	flags = loaded_flags if typeof(loaded_flags) == TYPE_DICTIONARY else {}
+	if typeof(loaded_flags) != TYPE_DICTIONARY:
+		push_warning("GameState: save has invalid story flags; loading with no flags.")
+		loaded_flags = {}
+
+	# Apply only after required state has passed validation. A malformed flags
+	# field is recoverable and keeps the historical empty-flags fallback.
+	current_scene = loaded_scene
+	var flags_dictionary: Dictionary = loaded_flags
+	flags = flags_dictionary.duplicate(true)
+
+	var journal := _journal()
+	if journal != null and journal.has_method("load_from_save"):
+		# Version 1 has no journal; treating it as an empty collection preserves
+		# its flags and makes the migration invisible to players.
+		journal.call("load_from_save", data.get("journal", {}))
+
 	state_changed.emit()
 	return true
 
@@ -76,3 +116,34 @@ func load_game() -> bool:
 func delete_save() -> void:
 	if has_save():
 		DirAccess.remove_absolute(SAVE_PATH)
+	if FileAccess.file_exists(TEMP_SAVE_PATH):
+		DirAccess.remove_absolute(TEMP_SAVE_PATH)
+
+
+func _journal() -> Node:
+	return get_node_or_null("/root/Journal")
+
+
+func _is_available_scene(scene: Variant) -> bool:
+	return typeof(scene) == TYPE_STRING and ResourceLoader.exists(scene, "PackedScene")
+
+
+func _read_save_data(report_errors: bool) -> Dictionary:
+	return _read_save_data_from(SAVE_PATH, report_errors)
+
+
+func _read_save_data_from(path: String, report_errors: bool) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		if report_errors:
+			push_error("GameState: could not open save file for reading.")
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		if report_errors:
+			push_error("GameState: save file is corrupt.")
+		return {}
+	return parsed
