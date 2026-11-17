@@ -44,6 +44,11 @@ func load_from_save(payload: Variant) -> void:
 	if typeof(raw_entries) != TYPE_ARRAY:
 		return
 
+	# Restored entries are not newly discovered. Populate them directly so
+	# Continue does not replay entry_added notifications for the reader UI.
 	for raw_id in raw_entries:
-		if typeof(raw_id) == TYPE_STRING:
-			discover(str(raw_id))
+		if typeof(raw_id) != TYPE_STRING:
+			continue
+		var id := str(raw_id).strip_edges()
+		if not id.is_empty() and not id in _entries:
+			_entries.append(id)
